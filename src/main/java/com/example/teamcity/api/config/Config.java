@@ -26,11 +26,11 @@ public class Config {
         try (InputStream stream = Config.class.getClassLoader().getResourceAsStream(fileName)) {
 
             if(stream == null) {
-                System.out.println("File not found " + fileName);
+                System.err.println("File not found " + fileName);
             }
             properties.load(stream);
         }catch (IOException e) {
-            System.out.println("Error during file reading " + fileName);
+            System.err.println("Error during file reading " + fileName);
             throw new RuntimeException(e);
         }
     }
