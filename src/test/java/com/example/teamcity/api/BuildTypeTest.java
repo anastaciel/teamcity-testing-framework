@@ -49,5 +49,44 @@ public class BuildTypeTest extends BaseApiTest {
                 .body(Matchers.containsString("The build configuration / template ID \"%s\" is already used by another configuration or template".formatted(testData.getBuildType().getId())));
     }
 
+    @Test(description = "Project admin should be able to create build type for their project", groups = {"Positive", "Roles"})
+    public void projectAdminCreatesBuildTypeTest() {
+
+        superUserCheckRequests.getRequest(PROJECTS).create(testData.getProject());
+
+        testData.getUser().setRoles(generate(Roles.class, "PROJECT_ADMIN", "p:" + testData.getProject().getId()));
+
+        superUserCheckRequests.<User>getRequest(USERS).create(testData.getUser());
+
+        var userCheckRequests = new CheckedRequests(Specifications.authSpec(testData.getUser()));
+
+        userCheckRequests.getRequest(BUILD_TYPES).create(testData.getBuildType());
+
+        var createdBuildType = userCheckRequests.<BuildType>getRequest(BUILD_TYPES).read(testData.getBuildType().getId());
+
+        softy.assertEquals(testData.getBuildType().getName(), createdBuildType.getName(), "Build type name is not correct");
+
+    }
+
+    @Test(description = "Project admin should not be able to create build type for not their project", groups = {"Negative", "Roles"})
+    public void projectAdminCreatesBuildTypeForAnotherUserProjectTest() {
+
+        superUserCheckRequests.getRequest(PROJECTS).create(testData.getProject());
+
+        var anotherProject = superUserCheckRequests.<Project>getRequest(PROJECTS).create(generate(Project.class));
+
+        testData.getUser().setRoles(generate(Roles.class, "PROJECT_ADMIN", "p:" + testData.getProject().getId()));
+
+        superUserCheckRequests.<User>getRequest(USERS).create(testData.getUser());
+
+        var anotherUser = generate(User.class);
+        anotherUser.setRoles(generate(Roles.class, "PROJECT_ADMIN", "p:" + anotherProject.getId()));
+        superUserCheckRequests.<User>getRequest(USERS).create(anotherUser);
+
+        new UncheckedBase(Specifications.authSpec(anotherUser), BUILD_TYPES)
+                .create(testData.getBuildType())
+                .then().assertThat().statusCode(HttpStatus.SC_FORBIDDEN)
+                .body(Matchers.containsString("You do not have enough permissions to edit project with id: %s".formatted(testData.getProject().getId())));
+    }
 
 }
